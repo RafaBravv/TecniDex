@@ -1,9 +1,10 @@
 import "@/global.css";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
+import { Animated, Easing, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomText from "@/components/customText";
 import CustomButton from "@/components/customButton";
+import axios from "axios";
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
@@ -42,67 +43,68 @@ export default function Index() {
     setError("");
 
     try {
-      const response = await fetch(
+      const response = await axios.get(
         `https://pokeapi.co/api/v2/pokemon/${query.toLowerCase().trim()}`
       );
+      const data = response.data;
 
-      if (!response.ok) {
-        throw new Error("Pokémon no encontrado");
-      }
-
-      const data = await response.json();
-      
       // Obtener nombres en español
-      const speciesResponse = await fetch(data.species.url);
-      const speciesData = await speciesResponse.json();
+      const speciesResponse = await axios.get(data.species.url);
+      const speciesData = speciesResponse.data;
       const spanishName = speciesData.names.find((name: any) => name.language.name === 'es')?.name || data.name;
-      
+
       // Obtener tipos en español
       const typesPromises = data.types.map(async (type: any) => {
-        const typeResponse = await fetch(type.type.url);
-        const typeData = await typeResponse.json();
+        const typeResponse = await axios.get(type.type.url);
+        const typeData = typeResponse.data;
         return typeData.names.find((name: any) => name.language.name === 'es')?.name || type.type.name;
       });
       const spanishTypes = await Promise.all(typesPromises);
-      
+
       // Obtener habilidades en español
       const abilitiesPromises = data.abilities.map(async (ability: any) => {
-        const abilityResponse = await fetch(ability.ability.url);
-        const abilityData = await abilityResponse.json();
+        const abilityResponse = await axios.get(ability.ability.url);
+        const abilityData = abilityResponse.data;
         return abilityData.names.find((name: any) => name.language.name === 'es')?.name || ability.ability.name;
       });
       const spanishAbilities = await Promise.all(abilitiesPromises);
-      
+
       // Obtener cadena evolutiva
-      const evolutionChainResponse = await fetch(speciesData.evolution_chain.url);
-      const evolutionChainData = await evolutionChainResponse.json();
-      
+      const evolutionChainResponse = await axios.get(speciesData.evolution_chain.url);
+      const evolutionChainData = evolutionChainResponse.data;
+
       const evolutionChain: EvolutionData[] = [];
-      const processEvolutionChain = async (chain: any) => {
+      // Recopilar todos los enlaces de la cadena de manera iterativa para evitar recursión profunda
+      const chainLinks = [];
+      let current = evolutionChainData.chain;
+      while (current) {
+        chainLinks.push(current);
+        current = current.evolves_to?.[0]; // Asumiendo cadena lineal, ignorando ramificaciones
+      }
+
+      // Procesar todos los enlaces en paralelo
+      const evolutionPromises = chainLinks.map(async (chain) => {
         const pokemonId = chain.species.url.split('/').slice(-2)[0];
-        const pokemonResponse = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
-        const pokemonData = await pokemonResponse.json();
-        const speciesResp = await fetch(chain.species.url);
-        const speciesInfo = await speciesResp.json();
+        const pokemonResponse = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
+        const pokemonData = pokemonResponse.data;
+        const speciesResp = await axios.get(chain.species.url);
+        const speciesInfo = speciesResp.data;
         const spanishNameEvo = speciesInfo.names.find((name: any) => name.language.name === 'es')?.name || chain.species.name;
-        
-        evolutionChain.push({
+
+        return {
           id: parseInt(pokemonId),
           name: spanishNameEvo,
           image: pokemonData.sprites.other['official-artwork'].front_default || pokemonData.sprites.front_default,
-        });
-        
-        if (chain.evolves_to && chain.evolves_to.length > 0) {
-          await processEvolutionChain(chain.evolves_to[0]);
-        }
-      };
-      
-      await processEvolutionChain(evolutionChainData.chain);
-      
+        };
+      });
+
+      const processedChain = await Promise.all(evolutionPromises);
+      evolutionChain.push(...processedChain);
+
       // Encontrar el índice del Pokémon actual en la cadena evolutiva
       const currentIndex = evolutionChain.findIndex(evo => evo.id === data.id);
       setCurrentEvolutionIndex(currentIndex !== -1 ? currentIndex : 0);
-      
+
       setPokemon({
         name: spanishName,
         image: data.sprites.other['official-artwork'].front_default || data.sprites.front_default,
@@ -114,7 +116,7 @@ export default function Index() {
         evolutionChain: evolutionChain,
       });
     } catch (err: any) {
-      setError(err.message || "Error al buscar el Pokémon");
+      setError(err.response?.data?.message || err.message || "Error al buscar el Pokémon");
       setPokemon(null);
     } finally {
       setLoading(false);
@@ -188,170 +190,6 @@ export default function Index() {
       'Hada': '#EE99AC',
     };
     return colors[type] || '#A8A878';
-  };
-
-  const translateType = (type: string): string => {
-    const translations: { [key: string]: string } = {
-      normal: 'Normal',
-      fire: 'Fuego',
-      water: 'Agua',
-      electric: 'Eléctrico',
-      grass: 'Planta',
-      ice: 'Hielo',
-      fighting: 'Lucha',
-      poison: 'Veneno',
-      ground: 'Tierra',
-      flying: 'Volador',
-      psychic: 'Psíquico',
-      bug: 'Bicho',
-      rock: 'Roca',
-      ghost: 'Fantasma',
-      dragon: 'Dragón',
-      dark: 'Siniestro',
-      steel: 'Acero',
-      fairy: 'Hada',
-    };
-    return translations[type] || type;
-  };
-
-  const translateAbility = (ability: string): string => {
-    const translations: { [key: string]: string } = {
-      // Habilidades comunes
-      'overgrow': 'Espesura',
-      'chlorophyll': 'Clorofila',
-      'blaze': 'Mar Llamas',
-      'solar-power': 'Poder Solar',
-      'torrent': 'Torrente',
-      'rain-dish': 'Cura Lluvia',
-      'shield-dust': 'Polvo Escudo',
-      'run-away': 'Fuga',
-      'shed-skin': 'Mudar',
-      'compound-eyes': 'Ojo Compuesto',
-      'swarm': 'Enjambre',
-      'keen-eye': 'Vista Lince',
-      'tangled-feet': 'Tumbos',
-      'big-pecks': 'Sacapecho',
-      'guts': 'Agallas',
-      'rattled': 'Cobardía',
-      'static': 'Electricidad Estática',
-      'lightning-rod': 'Pararrayos',
-      'sand-veil': 'Velo Arena',
-      'sand-rush': 'Ímpetu Arena',
-      'poison-point': 'Punto Tóxico',
-      'rivalry': 'Rivalidad',
-      'sheer-force': 'Potencia Bruta',
-      'cute-charm': 'Gran Encanto',
-      'magic-guard': 'Muro Mágico',
-      'unaware': 'Ignorante',
-      'flash-fire': 'Absorbe Fuego',
-      'drought': 'Sequía',
-      'levitate': 'Levitación',
-      'effect-spore': 'Efecto Espora',
-      'dry-skin': 'Piel Seca',
-      'damp': 'Humedad',
-      'wonder-skin': 'Piel Milagro',
-      'limber': 'Flexibilidad',
-      'imposter': 'Impostor',
-      'infiltrator': 'Allanamiento',
-      'stench': 'Hedor',
-      'sticky-hold': 'Viscosidad',
-      'poison-touch': 'Toque Tóxico',
-      'synchronize': 'Sincronía',
-      'inner-focus': 'Foco Interno',
-      'telepathy': 'Telepatía',
-      'volt-absorb': 'Absorbe Electricidad',
-      'water-absorb': 'Absorbe Agua',
-      'oblivious': 'Despiste',
-      'cloud-nine': 'Aclimatación',
-      'swift-swim': 'Nado Rápido',
-      'sniper': 'Francotirador',
-      'moody': 'Veleta',
-      'adaptability': 'Adaptabilidad',
-      'skill-link': 'Encadenado',
-      'hydration': 'Hidratación',
-      'thick-fat': 'Sebo',
-      'huge-power': 'Fuerza Pura',
-      'sap-sipper': 'Herbívoro',
-      'sand-force': 'Poder Arena',
-      'iron-fist': 'Puño Férreo',
-      'no-guard': 'Indefenso',
-      'steadfast': 'Impasible',
-      'pressure': 'Presión',
-      'justified': 'Justiciero',
-      'regenerator': 'Regeneración',
-      'natural-cure': 'Cura Natural',
-      'serene-grace': 'Dicha',
-      'hustle': 'Entusiasmo',
-      'super-luck': 'Afortunado',
-      'pickup': 'Recogida',
-      'gluttony': 'Gula',
-      'unnerve': 'Nerviosismo',
-      'defiant': 'Competitivo',
-      'quick-feet': 'Pies Rápidos',
-      'normalize': 'Normalidad',
-      'technician': 'Experto',
-      'early-bird': 'Madrugar',
-      'scrappy': 'Intrépido',
-      'vital-spirit': 'Espíritu Vital',
-      'anger-point': 'Irascible',
-      'defeatist': 'Flaqueza',
-      'solar-blade': 'Filo Solar',
-      'contrary': 'Díscolo',
-      'prankster': 'Bromista',
-      'sturdy': 'Robustez',
-      'magic-bounce': 'Espejo Mágico',
-      'friend-guard': 'Superguarda',
-      'healer': 'Alma Cura',
-      'leaf-guard': 'Defensa Hoja',
-      'white-smoke': 'Humo Blanco',
-      'pure-power': 'Energía Pura',
-      'shell-armor': 'Caparazón',
-      'air-lock': 'Ausencia Clima',
-      'battle-armor': 'Armadura Batalla',
-      'clear-body': 'Cuerpo Puro',
-      'hyper-cutter': 'Corte Fuerte',
-      'magma-armor': 'Escudo Magma',
-      'water-veil': 'Velo Agua',
-      'magnet-pull': 'Imán',
-      'soundproof': 'Insonorizar',
-      'illuminate': 'Iluminación',
-      'trace': 'Calco',
-      'download': 'Descarga',
-      'forecast': 'Predicción',
-      'anticipation': 'Anticipación',
-      'forewarn': 'Alerta',
-      'klutz': 'Zoquete',
-      'light-metal': 'Liviano',
-      'heavy-metal': 'Metal Pesado',
-      'multiscale': 'Multiescamas',
-      'toxic-boost': 'Ímpetu Tóxico',
-      'flare-boost': 'Ímpetu Ardiente',
-      'harvest': 'Cosecha',
-      'weak-armor': 'Armadura Frágil',
-      'cursed-body': 'Cuerpo Maldito',
-      'mummy': 'Momia',
-      'moxie': 'Autoestima',
-      'iron-barbs': 'Punta Acero',
-      'overcoat': 'Funda',
-      'pickpocket': 'Hurto',
-      'arena-trap': 'Trampa Arena',
-      'flame-body': 'Cuerpo Llama',
-      'minus': 'Menos',
-      'plus': 'Más',
-      'rock-head': 'Cabeza Roca',
-      'rough-skin': 'Piel Tosca',
-      'wonder-guard': 'Superguarda',
-      'immunity': 'Inmunidad',
-      'own-tempo': 'Ritmo Propio',
-      'suction-cups': 'Ventosas',
-      'intimidate': 'Intimidación',
-      'shadow-tag': 'Sombra Trampa',
-      'speed-boost': 'Impulso',
-      'truant': 'Ausente',
-    };
-    return translations[ability] || ability.split('-').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
   };
 
   const getTypeWeaknesses = (types: string[]): string[] => {
