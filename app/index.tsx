@@ -41,14 +41,35 @@ export default function Index() {
 
       const data = await response.json();
       
+      // Obtener nombres en español
+      const speciesResponse = await fetch(data.species.url);
+      const speciesData = await speciesResponse.json();
+      const spanishName = speciesData.names.find((name: any) => name.language.name === 'es')?.name || data.name;
+      
+      // Obtener tipos en español
+      const typesPromises = data.types.map(async (type: any) => {
+        const typeResponse = await fetch(type.type.url);
+        const typeData = await typeResponse.json();
+        return typeData.names.find((name: any) => name.language.name === 'es')?.name || type.type.name;
+      });
+      const spanishTypes = await Promise.all(typesPromises);
+      
+      // Obtener habilidades en español
+      const abilitiesPromises = data.abilities.map(async (ability: any) => {
+        const abilityResponse = await fetch(ability.ability.url);
+        const abilityData = await abilityResponse.json();
+        return abilityData.names.find((name: any) => name.language.name === 'es')?.name || ability.ability.name;
+      });
+      const spanishAbilities = await Promise.all(abilitiesPromises);
+      
       setPokemon({
-        name: data.name,
+        name: spanishName,
         image: data.sprites.other['official-artwork'].front_default || data.sprites.front_default,
         id: data.id,
-        types: data.types.map((type: any) => type.type.name),
+        types: spanishTypes,
         height: data.height,
         weight: data.weight,
-        abilities: data.abilities.map((ability: any) => ability.ability.name),
+        abilities: spanishAbilities,
       });
     } catch (err: any) {
       setError(err.message || "Error al buscar el Pokémon");
@@ -74,48 +95,212 @@ export default function Index() {
 
   const getTypeColor = (type: string): string => {
     const colors: { [key: string]: string } = {
-      normal: '#A8A878',
-      fire: '#F08030',
-      water: '#6890F0',
-      electric: '#F8D030',
-      grass: '#78C850',
-      ice: '#98D8D8',
-      fighting: '#C03028',
-      poison: '#A040A0',
-      ground: '#E0C068',
-      flying: '#A890F0',
-      psychic: '#F85888',
-      bug: '#A8B820',
-      rock: '#B8A038',
-      ghost: '#705898',
-      dragon: '#7038F8',
-      dark: '#705848',
-      steel: '#B8B8D0',
-      fairy: '#EE99AC',
+      'Normal': '#A8A878',
+      'Fuego': '#F08030',
+      'Agua': '#6890F0',
+      'Eléctrico': '#F8D030',
+      'Planta': '#78C850',
+      'Hielo': '#98D8D8',
+      'Lucha': '#C03028',
+      'Veneno': '#A040A0',
+      'Tierra': '#E0C068',
+      'Volador': '#A890F0',
+      'Psíquico': '#F85888',
+      'Bicho': '#A8B820',
+      'Roca': '#B8A038',
+      'Fantasma': '#705898',
+      'Dragón': '#7038F8',
+      'Siniestro': '#705848',
+      'Acero': '#B8B8D0',
+      'Hada': '#EE99AC',
     };
     return colors[type] || '#A8A878';
   };
 
+  const translateType = (type: string): string => {
+    const translations: { [key: string]: string } = {
+      normal: 'Normal',
+      fire: 'Fuego',
+      water: 'Agua',
+      electric: 'Eléctrico',
+      grass: 'Planta',
+      ice: 'Hielo',
+      fighting: 'Lucha',
+      poison: 'Veneno',
+      ground: 'Tierra',
+      flying: 'Volador',
+      psychic: 'Psíquico',
+      bug: 'Bicho',
+      rock: 'Roca',
+      ghost: 'Fantasma',
+      dragon: 'Dragón',
+      dark: 'Siniestro',
+      steel: 'Acero',
+      fairy: 'Hada',
+    };
+    return translations[type] || type;
+  };
+
+  const translateAbility = (ability: string): string => {
+    const translations: { [key: string]: string } = {
+      // Habilidades comunes
+      'overgrow': 'Espesura',
+      'chlorophyll': 'Clorofila',
+      'blaze': 'Mar Llamas',
+      'solar-power': 'Poder Solar',
+      'torrent': 'Torrente',
+      'rain-dish': 'Cura Lluvia',
+      'shield-dust': 'Polvo Escudo',
+      'run-away': 'Fuga',
+      'shed-skin': 'Mudar',
+      'compound-eyes': 'Ojo Compuesto',
+      'swarm': 'Enjambre',
+      'keen-eye': 'Vista Lince',
+      'tangled-feet': 'Tumbos',
+      'big-pecks': 'Sacapecho',
+      'guts': 'Agallas',
+      'rattled': 'Cobardía',
+      'static': 'Electricidad Estática',
+      'lightning-rod': 'Pararrayos',
+      'sand-veil': 'Velo Arena',
+      'sand-rush': 'Ímpetu Arena',
+      'poison-point': 'Punto Tóxico',
+      'rivalry': 'Rivalidad',
+      'sheer-force': 'Potencia Bruta',
+      'cute-charm': 'Gran Encanto',
+      'magic-guard': 'Muro Mágico',
+      'unaware': 'Ignorante',
+      'flash-fire': 'Absorbe Fuego',
+      'drought': 'Sequía',
+      'levitate': 'Levitación',
+      'effect-spore': 'Efecto Espora',
+      'dry-skin': 'Piel Seca',
+      'damp': 'Humedad',
+      'wonder-skin': 'Piel Milagro',
+      'limber': 'Flexibilidad',
+      'imposter': 'Impostor',
+      'infiltrator': 'Allanamiento',
+      'stench': 'Hedor',
+      'sticky-hold': 'Viscosidad',
+      'poison-touch': 'Toque Tóxico',
+      'synchronize': 'Sincronía',
+      'inner-focus': 'Foco Interno',
+      'telepathy': 'Telepatía',
+      'volt-absorb': 'Absorbe Electricidad',
+      'water-absorb': 'Absorbe Agua',
+      'oblivious': 'Despiste',
+      'cloud-nine': 'Aclimatación',
+      'swift-swim': 'Nado Rápido',
+      'sniper': 'Francotirador',
+      'moody': 'Veleta',
+      'adaptability': 'Adaptabilidad',
+      'skill-link': 'Encadenado',
+      'hydration': 'Hidratación',
+      'thick-fat': 'Sebo',
+      'huge-power': 'Fuerza Pura',
+      'sap-sipper': 'Herbívoro',
+      'sand-force': 'Poder Arena',
+      'iron-fist': 'Puño Férreo',
+      'no-guard': 'Indefenso',
+      'steadfast': 'Impasible',
+      'pressure': 'Presión',
+      'justified': 'Justiciero',
+      'regenerator': 'Regeneración',
+      'natural-cure': 'Cura Natural',
+      'serene-grace': 'Dicha',
+      'hustle': 'Entusiasmo',
+      'super-luck': 'Afortunado',
+      'pickup': 'Recogida',
+      'gluttony': 'Gula',
+      'unnerve': 'Nerviosismo',
+      'defiant': 'Competitivo',
+      'quick-feet': 'Pies Rápidos',
+      'normalize': 'Normalidad',
+      'technician': 'Experto',
+      'early-bird': 'Madrugar',
+      'scrappy': 'Intrépido',
+      'vital-spirit': 'Espíritu Vital',
+      'anger-point': 'Irascible',
+      'defeatist': 'Flaqueza',
+      'solar-blade': 'Filo Solar',
+      'contrary': 'Díscolo',
+      'prankster': 'Bromista',
+      'sturdy': 'Robustez',
+      'magic-bounce': 'Espejo Mágico',
+      'friend-guard': 'Superguarda',
+      'healer': 'Alma Cura',
+      'leaf-guard': 'Defensa Hoja',
+      'white-smoke': 'Humo Blanco',
+      'pure-power': 'Energía Pura',
+      'shell-armor': 'Caparazón',
+      'air-lock': 'Ausencia Clima',
+      'battle-armor': 'Armadura Batalla',
+      'clear-body': 'Cuerpo Puro',
+      'hyper-cutter': 'Corte Fuerte',
+      'magma-armor': 'Escudo Magma',
+      'water-veil': 'Velo Agua',
+      'magnet-pull': 'Imán',
+      'soundproof': 'Insonorizar',
+      'illuminate': 'Iluminación',
+      'trace': 'Calco',
+      'download': 'Descarga',
+      'forecast': 'Predicción',
+      'anticipation': 'Anticipación',
+      'forewarn': 'Alerta',
+      'klutz': 'Zoquete',
+      'light-metal': 'Liviano',
+      'heavy-metal': 'Metal Pesado',
+      'multiscale': 'Multiescamas',
+      'toxic-boost': 'Ímpetu Tóxico',
+      'flare-boost': 'Ímpetu Ardiente',
+      'harvest': 'Cosecha',
+      'weak-armor': 'Armadura Frágil',
+      'cursed-body': 'Cuerpo Maldito',
+      'mummy': 'Momia',
+      'moxie': 'Autoestima',
+      'iron-barbs': 'Punta Acero',
+      'overcoat': 'Funda',
+      'pickpocket': 'Hurto',
+      'arena-trap': 'Trampa Arena',
+      'flame-body': 'Cuerpo Llama',
+      'minus': 'Menos',
+      'plus': 'Más',
+      'rock-head': 'Cabeza Roca',
+      'rough-skin': 'Piel Tosca',
+      'wonder-guard': 'Superguarda',
+      'immunity': 'Inmunidad',
+      'own-tempo': 'Ritmo Propio',
+      'suction-cups': 'Ventosas',
+      'intimidate': 'Intimidación',
+      'shadow-tag': 'Sombra Trampa',
+      'speed-boost': 'Impulso',
+      'truant': 'Ausente',
+    };
+    return translations[ability] || ability.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
   const getTypeWeaknesses = (types: string[]): string[] => {
     const weaknesses: { [key: string]: string[] } = {
-      normal: ['fighting'],
-      fire: ['water', 'ground', 'rock'],
-      water: ['electric', 'grass'],
-      electric: ['ground'],
-      grass: ['fire', 'ice', 'poison', 'flying', 'bug'],
-      ice: ['fire', 'fighting', 'rock', 'steel'],
-      fighting: ['flying', 'psychic', 'fairy'],
-      poison: ['ground', 'psychic'],
-      ground: ['water', 'grass', 'ice'],
-      flying: ['electric', 'ice', 'rock'],
-      psychic: ['bug', 'ghost', 'dark'],
-      bug: ['fire', 'flying', 'rock'],
-      rock: ['water', 'grass', 'fighting', 'ground', 'steel'],
-      ghost: ['ghost', 'dark'],
-      dragon: ['ice', 'dragon', 'fairy'],
-      dark: ['fighting', 'bug', 'fairy'],
-      steel: ['fire', 'fighting', 'ground'],
-      fairy: ['poison', 'steel'],
+      'Normal': ['Lucha'],
+      'Fuego': ['Agua', 'Tierra', 'Roca'],
+      'Agua': ['Eléctrico', 'Planta'],
+      'Eléctrico': ['Tierra'],
+      'Planta': ['Fuego', 'Hielo', 'Veneno', 'Volador', 'Bicho'],
+      'Hielo': ['Fuego', 'Lucha', 'Roca', 'Acero'],
+      'Lucha': ['Volador', 'Psíquico', 'Hada'],
+      'Veneno': ['Tierra', 'Psíquico'],
+      'Tierra': ['Agua', 'Planta', 'Hielo'],
+      'Volador': ['Eléctrico', 'Hielo', 'Roca'],
+      'Psíquico': ['Bicho', 'Fantasma', 'Siniestro'],
+      'Bicho': ['Fuego', 'Volador', 'Roca'],
+      'Roca': ['Agua', 'Planta', 'Lucha', 'Tierra', 'Acero'],
+      'Fantasma': ['Fantasma', 'Siniestro'],
+      'Dragón': ['Hielo', 'Dragón', 'Hada'],
+      'Siniestro': ['Lucha', 'Bicho', 'Hada'],
+      'Acero': ['Fuego', 'Lucha', 'Tierra'],
+      'Hada': ['Veneno', 'Acero'],
     };
 
     const allWeaknesses = types.flatMap(type => weaknesses[type] || []);
@@ -249,7 +434,7 @@ export default function Index() {
                   >
                     <CustomText 
                       variant="typeText" 
-                      value={ability.replace('-', ' ')} 
+                      value={ability} 
                     />
                   </View>
                 ))}
