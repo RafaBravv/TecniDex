@@ -12,6 +12,7 @@ interface Pokemon {
   types: string[];
   height: number;
   weight: number;
+  abilities: string[];
 }
 
 export default function Index() {
@@ -47,6 +48,7 @@ export default function Index() {
         types: data.types.map((type: any) => type.type.name),
         height: data.height,
         weight: data.weight,
+        abilities: data.abilities.map((ability: any) => ability.ability.name),
       });
     } catch (err: any) {
       setError(err.message || "Error al buscar el Pokémon");
@@ -92,6 +94,32 @@ export default function Index() {
       fairy: '#EE99AC',
     };
     return colors[type] || '#A8A878';
+  };
+
+  const getTypeWeaknesses = (types: string[]): string[] => {
+    const weaknesses: { [key: string]: string[] } = {
+      normal: ['fighting'],
+      fire: ['water', 'ground', 'rock'],
+      water: ['electric', 'grass'],
+      electric: ['ground'],
+      grass: ['fire', 'ice', 'poison', 'flying', 'bug'],
+      ice: ['fire', 'fighting', 'rock', 'steel'],
+      fighting: ['flying', 'psychic', 'fairy'],
+      poison: ['ground', 'psychic'],
+      ground: ['water', 'grass', 'ice'],
+      flying: ['electric', 'ice', 'rock'],
+      psychic: ['bug', 'ghost', 'dark'],
+      bug: ['fire', 'flying', 'rock'],
+      rock: ['water', 'grass', 'fighting', 'ground', 'steel'],
+      ghost: ['ghost', 'dark'],
+      dragon: ['ice', 'dragon', 'fairy'],
+      dark: ['fighting', 'bug', 'fairy'],
+      steel: ['fire', 'fighting', 'ground'],
+      fairy: ['poison', 'steel'],
+    };
+
+    const allWeaknesses = types.flatMap(type => weaknesses[type] || []);
+    return [...new Set(allWeaknesses)]; // Eliminar duplicados
   };
 
   return (
@@ -184,7 +212,7 @@ export default function Index() {
             </View>
 
             {/* Stats */}
-            <View className="w-full bg-gray-50 rounded-2xl p-4">
+            <View className="w-full bg-gray-50 rounded-2xl p-4 mb-4">
               <CustomText variant="statsTitle" value="Estadísticas" />
               
               <View className="flex-row justify-around items-center">
@@ -207,6 +235,40 @@ export default function Index() {
                   />
                   <CustomText variant="statLabel" value="Peso" />
                 </View>
+              </View>
+            </View>
+
+            {/* Abilities */}
+            <View className="w-full bg-gray-50 rounded-2xl p-4 mb-4">
+              <CustomText variant="statsTitle" value="Habilidades" />
+              <View className="flex-row flex-wrap gap-2 justify-center mt-2">
+                {pokemon.abilities.map((ability, index) => (
+                  <View
+                    key={index}
+                    className="bg-purple-500 px-4 py-2 rounded-full"
+                  >
+                    <CustomText 
+                      variant="typeText" 
+                      value={ability.replace('-', ' ')} 
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Weaknesses */}
+            <View className="w-full bg-gray-50 rounded-2xl p-4">
+              <CustomText variant="statsTitle" value="Debilidades" />
+              <View className="flex-row flex-wrap gap-2 justify-center mt-2">
+                {getTypeWeaknesses(pokemon.types).map((weakness, index) => (
+                  <View
+                    key={index}
+                    className="px-4 py-2 rounded-full"
+                    style={{ backgroundColor: getTypeColor(weakness) }}
+                  >
+                    <CustomText variant="typeText" value={weakness} />
+                  </View>
+                ))}
               </View>
             </View>
           </View>
