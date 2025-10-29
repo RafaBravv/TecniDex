@@ -1,7 +1,9 @@
 import "@/global.css";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import CustomText from "@/components/customText";
+import CustomButton from "@/components/customButton";
 
 interface Pokemon {
   name: string;
@@ -98,17 +100,13 @@ export default function Index() {
       <ScrollView contentContainerClassName="flex-grow p-6 z-1000">
         {/* Header */}
         <View className="items-center mb-6">
-          <Text className="text-4xl font-bold text-white mb-2">Pokédex</Text>
-          <Text className="text-white opacity-90 text-base">
-            Busca tu Pokémon favorito
-          </Text>
+          <CustomText variant="header" value="Pokédex" />
+          <CustomText variant="subheader" value="Busca tu Pokémon favorito" />
         </View>
 
         {/* Search Bar */}
         <View className="bg-white rounded-2xl p-4 mb-6 shadow-lg">
-          <Text className="text-gray-700 font-semibold mb-2 text-base">
-            Nombre o Número
-          </Text>
+          <CustomText variant="label" value="Nombre o Número" />
           <TextInput
             className="bg-gray-100 border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 mb-3 text-base"
             placeholder="Ej: pikachu o 25"
@@ -120,32 +118,26 @@ export default function Index() {
           />
           
           <View className="flex-row gap-2">
-            <TouchableOpacity
-              className="flex-1 bg-red-500 rounded-xl py-4 items-center shadow-md active:opacity-80"
+            <CustomButton
+              title={loading ? "Buscando..." : "Buscar"}
               onPress={handleSearch}
+              variant="primary"
               disabled={loading}
-            >
-              <Text className="text-white font-bold text-lg">
-                {loading ? "Buscando..." : "Buscar"}
-              </Text>
-            </TouchableOpacity>
+            />
 
-            <TouchableOpacity
-              className="flex-1 bg-transparent border-2 border-red-500 rounded-xl py-4 items-center active:opacity-80"
+            <CustomButton
+              title="Aleatorio"
               onPress={handleRandomPokemon}
+              variant="outline"
               disabled={loading}
-            >
-              <Text className="text-red-500 font-bold text-lg">Aleatorio</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
 
         {/* Error Message */}
         {error && (
           <View className="bg-red-100 border-2 border-red-400 rounded-xl p-4 mb-6">
-            <Text className="text-red-700 text-center font-semibold">
-              {error}
-            </Text>
+            <CustomText variant="error" value={error} />
           </View>
         )}
 
@@ -153,9 +145,7 @@ export default function Index() {
         {loading && (
           <View className="items-center py-12">
             <ActivityIndicator size="large" color="#ffffff" />
-            <Text className="text-white mt-4 text-base">
-              Buscando Pokémon...
-            </Text>
+            <CustomText variant="loading" value="Buscando Pokémon..." />
           </View>
         )}
 
@@ -163,9 +153,10 @@ export default function Index() {
         {pokemon && !loading && (
           <View className="bg-white rounded-3xl p-6 items-center shadow-2xl">
             {/* ID */}
-            <Text className="text-gray-400 font-bold text-lg mb-2">
-              #{pokemon.id.toString().padStart(3, '0')}
-            </Text>
+            <CustomText 
+              variant="pokemonId"
+              value={`#${pokemon.id.toString().padStart(3, '0')}`}
+            />
 
             {/* Image */}
             <View className="bg-gray-50 rounded-full p-4 mb-4">
@@ -177,9 +168,7 @@ export default function Index() {
             </View>
 
             {/* Name */}
-            <Text className="text-3xl font-bold text-gray-800 capitalize mb-4">
-              {pokemon.name}
-            </Text>
+            <CustomText variant="pokemonName" value={pokemon.name} />
 
             {/* Types */}
             <View className="flex-row gap-2 mb-6">
@@ -189,34 +178,34 @@ export default function Index() {
                   className="px-6 py-2 rounded-full"
                   style={{ backgroundColor: getTypeColor(type) }}
                 >
-                  <Text className="text-white font-bold capitalize text-sm">
-                    {type}
-                  </Text>
+                  <CustomText variant="typeText" value={type} />
                 </View>
               ))}
             </View>
 
             {/* Stats */}
             <View className="w-full bg-gray-50 rounded-2xl p-4">
-              <Text className="text-lg font-bold text-gray-700 mb-3 text-center">
-                Estadísticas
-              </Text>
+              <CustomText variant="statsTitle" value="Estadísticas" />
               
               <View className="flex-row justify-around items-center">
                 <View className="items-center">
-                  <Text className="text-2xl font-bold text-red-500">
-                    {(pokemon.height / 10).toFixed(1)}m
-                  </Text>
-                  <Text className="text-gray-500 text-xs mt-1">Altura</Text>
+                  <CustomText 
+                    variant="statValue" 
+                    color="text-red-500"
+                    value={`${(pokemon.height / 10).toFixed(1)}m`}
+                  />
+                  <CustomText variant="statLabel" value="Altura" />
                 </View>
 
                 <View className="w-px h-10 bg-gray-300" />
 
                 <View className="items-center">
-                  <Text className="text-2xl font-bold text-blue-500">
-                    {(pokemon.weight / 10).toFixed(1)}kg
-                  </Text>
-                  <Text className="text-gray-500 text-xs mt-1">Peso</Text>
+                  <CustomText 
+                    variant="statValue" 
+                    color="text-blue-500"
+                    value={`${(pokemon.weight / 10).toFixed(1)}kg`}
+                  />
+                  <CustomText variant="statLabel" value="Peso" />
                 </View>
               </View>
             </View>
@@ -226,9 +215,10 @@ export default function Index() {
         {/* Initial State */}
         {!pokemon && !loading && !error && (
           <View className="items-center py-12">
-            <Text className="text-white text-lg text-center">
-              Busca un Pokémon por nombre o número
-            </Text>
+            <CustomText 
+              variant="initial"
+              value="Busca un Pokémon por nombre o número"
+            />
           </View>
         )}
       </ScrollView>
