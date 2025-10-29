@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Text, Image, TextInput, View, ActivityIndicator, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { Text, Image, TextInput, View, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import "@/global.css";
 
 interface Pokemon {
   name: string;
@@ -92,19 +93,23 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView className="flex-1 bg-red-500">
+      <ScrollView contentContainerClassName="flex-grow p-6">
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Pokédex</Text>
-          <Text style={styles.subtitle}>Busca tu Pokémon favorito</Text>
+        <View className="items-center mb-6">
+          <Text className="text-4xl font-bold text-white mb-2">Pokédex</Text>
+          <Text className="text-white opacity-90 text-base">
+            Busca tu Pokémon favorito
+          </Text>
         </View>
 
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Text style={styles.label}>Nombre o Número</Text>
+        <View className="bg-white rounded-2xl p-4 mb-6 shadow-lg">
+          <Text className="text-gray-700 font-semibold mb-2 text-base">
+            Nombre o Número
+          </Text>
           <TextInput
-            style={styles.input}
+            className="bg-gray-100 border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 mb-3 text-base"
             placeholder="Ej: pikachu o 25"
             placeholderTextColor="#9ca3af"
             value={searchQuery}
@@ -113,93 +118,104 @@ export default function Index() {
             onSubmitEditing={handleSearch}
           />
           
-          <View style={styles.buttonRow}>
+          <View className="flex-row gap-2">
             <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
+              className="flex-1 bg-red-500 rounded-xl py-4 items-center shadow-md active:opacity-80"
               onPress={handleSearch}
               disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>
+              <Text className="text-white font-bold text-lg">
                 {loading ? "Buscando..." : "Buscar"}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.button, styles.secondaryButton]}
+              className="flex-1 bg-transparent border-2 border-red-500 rounded-xl py-4 items-center active:opacity-80"
               onPress={handleRandomPokemon}
               disabled={loading}
             >
-              <Text style={styles.secondaryButtonText}>Aleatorio</Text>
+              <Text className="text-red-500 font-bold text-lg">Aleatorio</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Error Message */}
         {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View className="bg-red-100 border-2 border-red-400 rounded-xl p-4 mb-6">
+            <Text className="text-red-700 text-center font-semibold">
+              {error}
+            </Text>
           </View>
         )}
 
         {/* Loading */}
         {loading && (
-          <View style={styles.loadingContainer}>
+          <View className="items-center py-12">
             <ActivityIndicator size="large" color="#ffffff" />
-            <Text style={styles.loadingText}>Buscando Pokémon...</Text>
+            <Text className="text-white mt-4 text-base">
+              Buscando Pokémon...
+            </Text>
           </View>
         )}
 
         {/* Pokemon Card */}
         {pokemon && !loading && (
-          <View style={styles.card}>
+          <View className="bg-white rounded-3xl p-6 items-center shadow-2xl">
             {/* ID */}
-            <Text style={styles.pokemonId}>
+            <Text className="text-gray-400 font-bold text-lg mb-2">
               #{pokemon.id.toString().padStart(3, '0')}
             </Text>
 
             {/* Image */}
-            <View style={styles.imageContainer}>
+            <View className="bg-gray-50 rounded-full p-4 mb-4">
               <Image
                 source={{ uri: pokemon.image }}
-                style={styles.pokemonImage}
+                className="w-52 h-52"
                 resizeMode="contain"
               />
             </View>
 
             {/* Name */}
-            <Text style={styles.pokemonName}>{pokemon.name}</Text>
+            <Text className="text-3xl font-bold text-gray-800 capitalize mb-4">
+              {pokemon.name}
+            </Text>
 
             {/* Types */}
-            <View style={styles.typesContainer}>
+            <View className="flex-row gap-2 mb-6">
               {pokemon.types.map((type, index) => (
                 <View
                   key={index}
-                  style={[styles.typeBadge, { backgroundColor: getTypeColor(type) }]}
+                  className="px-6 py-2 rounded-full"
+                  style={{ backgroundColor: getTypeColor(type) }}
                 >
-                  <Text style={styles.typeText}>{type}</Text>
+                  <Text className="text-white font-bold capitalize text-sm">
+                    {type}
+                  </Text>
                 </View>
               ))}
             </View>
 
             {/* Stats */}
-            <View style={styles.statsContainer}>
-              <Text style={styles.statsTitle}>Estadísticas</Text>
+            <View className="w-full bg-gray-50 rounded-2xl p-4">
+              <Text className="text-lg font-bold text-gray-700 mb-3 text-center">
+                Estadísticas
+              </Text>
               
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
+              <View className="flex-row justify-around items-center">
+                <View className="items-center">
+                  <Text className="text-2xl font-bold text-red-500">
                     {(pokemon.height / 10).toFixed(1)}m
                   </Text>
-                  <Text style={styles.statLabel}>Altura</Text>
+                  <Text className="text-gray-500 text-xs mt-1">Altura</Text>
                 </View>
 
-                <View style={styles.statDivider} />
+                <View className="w-px h-10 bg-gray-300" />
 
-                <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: '#3b82f6' }]}>
+                <View className="items-center">
+                  <Text className="text-2xl font-bold text-blue-500">
                     {(pokemon.weight / 10).toFixed(1)}kg
                   </Text>
-                  <Text style={styles.statLabel}>Peso</Text>
+                  <Text className="text-gray-500 text-xs mt-1">Peso</Text>
                 </View>
               </View>
             </View>
@@ -208,8 +224,8 @@ export default function Index() {
 
         {/* Initial State */}
         {!pokemon && !loading && !error && (
-          <View style={styles.initialState}>
-            <Text style={styles.initialText}>
+          <View className="items-center py-12">
+            <Text className="text-white text-lg text-center">
               Busca un Pokémon por nombre o número
             </Text>
           </View>
@@ -218,207 +234,3 @@ export default function Index() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ef4444',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#ffffff',
-    opacity: 0.9,
-    fontSize: 16,
-  },
-  searchContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  label: {
-    color: '#374151',
-    fontWeight: '600',
-    marginBottom: 8,
-    fontSize: 16,
-  },
-  input: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: '#111827',
-    marginBottom: 12,
-    fontSize: 16,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  button: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#ef4444',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#ef4444',
-  },
-  secondaryButtonText: {
-    color: '#ef4444',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  errorContainer: {
-    backgroundColor: '#fee2e2',
-    borderWidth: 2,
-    borderColor: '#f87171',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  errorText: {
-    color: '#b91c1c',
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  loadingText: {
-    color: '#ffffff',
-    marginTop: 16,
-    fontSize: 16,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  pokemonId: {
-    color: '#9ca3af',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 8,
-  },
-  imageContainer: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 100,
-    padding: 16,
-    marginBottom: 16,
-  },
-  pokemonImage: {
-    width: 200,
-    height: 200,
-  },
-  pokemonName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    textTransform: 'capitalize',
-    marginBottom: 16,
-  },
-  typesContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 24,
-  },
-  typeBadge: {
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  typeText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
-    fontSize: 14,
-  },
-  statsContainer: {
-    width: '100%',
-    backgroundColor: '#f9fafb',
-    borderRadius: 16,
-    padding: 16,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ef4444',
-  },
-  statLabel: {
-    color: '#6b7280',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#d1d5db',
-  },
-  initialState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  initialText: {
-    color: '#ffffff',
-    fontSize: 18,
-    textAlign: 'center',
-  },
-});
