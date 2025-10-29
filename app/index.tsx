@@ -1,6 +1,6 @@
 import "@/global.css";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomText from "@/components/customText";
 import CustomButton from "@/components/customButton";
@@ -13,6 +13,13 @@ interface Pokemon {
   height: number;
   weight: number;
   abilities: string[];
+  evolutionChain: EvolutionData[];
+}
+
+interface EvolutionData {
+  id: number;
+  name: string;
+  image: string;
 }
 
 export default function Index() {
@@ -20,6 +27,7 @@ export default function Index() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [currentEvolutionIndex, setCurrentEvolutionIndex] = useState<number>(0);
 
   const fetchPokemon = async (query: string) => {
     if (!query.trim()) {
@@ -62,6 +70,36 @@ export default function Index() {
       });
       const spanishAbilities = await Promise.all(abilitiesPromises);
       
+      // Obtener cadena evolutiva
+      const evolutionChainResponse = await fetch(speciesData.evolution_chain.url);
+      const evolutionChainData = await evolutionChainResponse.json();
+      
+      const evolutionChain: EvolutionData[] = [];
+      const processEvolutionChain = async (chain: any) => {
+        const pokemonId = chain.species.url.split('/').slice(-2)[0];
+        const pokemonResponse = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
+        const pokemonData = await pokemonResponse.json();
+        const speciesResp = await fetch(chain.species.url);
+        const speciesInfo = await speciesResp.json();
+        const spanishNameEvo = speciesInfo.names.find((name: any) => name.language.name === 'es')?.name || chain.species.name;
+        
+        evolutionChain.push({
+          id: parseInt(pokemonId),
+          name: spanishNameEvo,
+          image: pokemonData.sprites.other['official-artwork'].front_default || pokemonData.sprites.front_default,
+        });
+        
+        if (chain.evolves_to && chain.evolves_to.length > 0) {
+          await processEvolutionChain(chain.evolves_to[0]);
+        }
+      };
+      
+      await processEvolutionChain(evolutionChainData.chain);
+      
+      // Encontrar el índice del Pokémon actual en la cadena evolutiva
+      const currentIndex = evolutionChain.findIndex(evo => evo.id === data.id);
+      setCurrentEvolutionIndex(currentIndex !== -1 ? currentIndex : 0);
+      
       setPokemon({
         name: spanishName,
         image: data.sprites.other['official-artwork'].front_default || data.sprites.front_default,
@@ -70,6 +108,7 @@ export default function Index() {
         height: data.height,
         weight: data.weight,
         abilities: spanishAbilities,
+        evolutionChain: evolutionChain,
       });
     } catch (err: any) {
       setError(err.message || "Error al buscar el Pokémon");
@@ -92,6 +131,18 @@ export default function Index() {
   useEffect(() => {
     handleRandomPokemon();
   }, []);
+
+  const handlePreviousEvolution = async () => {
+    if (!pokemon || currentEvolutionIndex <= 0) return;
+    const prevEvolution = pokemon.evolutionChain[currentEvolutionIndex - 1];
+    await fetchPokemon(prevEvolution.id.toString());
+  };
+
+  const handleNextEvolution = async () => {
+    if (!pokemon || currentEvolutionIndex >= pokemon.evolutionChain.length - 1) return;
+    const nextEvolution = pokemon.evolutionChain[currentEvolutionIndex + 1];
+    await fetchPokemon(nextEvolution.id.toString());
+  };
 
   const getTypeColor = (type: string): string => {
     const colors: { [key: string]: string } = {
@@ -371,13 +422,58 @@ export default function Index() {
               value={`#${pokemon.id.toString().padStart(3, '0')}`}
             />
 
-            {/* Image */}
-            <View className="bg-gray-50 rounded-full p-4 mb-4">
-              <Image
-                source={{ uri: pokemon.image }}
-                className="w-52 h-52"
-                resizeMode="contain"
-              />
+            {/* Image with Evolution Carousel */}
+            <View className="w-full mb-4">
+              <View className="flex-row items-center justify-center">
+                {/* Previous Evolution Button */}
+                <TouchableOpacity
+                  onPress={handlePreviousEvolution}
+                  disabled={currentEvolutionIndex <= 0}
+                  className="p-3"
+                >
+                  <CustomText 
+                    variant="title" 
+                    value="◀" 
+                    color={currentEvolutionIndex <= 0 ? "text-gray-300" : "text-red-500"}
+                  />
+                </TouchableOpacity>
+
+                {/* Pokemon Image */}
+                <View className="bg-gray-50 rounded-full p-4">
+                  <Image
+                    source={{ uri: pokemon.image }}
+                    className="w-52 h-52"
+                    resizeMode="contain"
+                  />
+                </View>
+
+                {/* Next Evolution Button */}
+                <TouchableOpacity
+                  onPress={handleNextEvolution}
+                  disabled={currentEvolutionIndex >= pokemon.evolutionChain.length - 1}
+                  className="p-3"
+                >
+                  <CustomText 
+                    variant="title" 
+                    value="▶" 
+                    color={currentEvolutionIndex >= pokemon.evolutionChain.length - 1 ? "text-gray-300" : "text-red-500"}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Evolution Indicator */}
+              {pokemon.evolutionChain.length > 1 && (
+                <View className="flex-row justify-center gap-2 mt-3">
+                  {pokemon.evolutionChain.map((_, index) => (
+                    <View
+                      key={index}
+                      className={`w-2 h-2 rounded-full ${
+                        index === currentEvolutionIndex ? 'bg-red-500' : 'bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Name */}
