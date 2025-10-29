@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { Text, Image, TextInput, View, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import "@/global.css";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Pokemon {
   name: string;
@@ -93,8 +93,9 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-red-500">
-      <ScrollView contentContainerClassName="flex-grow p-6">
+    <SafeAreaView className="flex-1 bg-white relative">
+      <View className="h-[50%] bg-red-500 -z-1 absolute inset-0"/>
+      <ScrollView contentContainerClassName="flex-grow p-6 z-1000">
         {/* Header */}
         <View className="items-center mb-6">
           <Text className="text-4xl font-bold text-white mb-2">Pokédex</Text>
