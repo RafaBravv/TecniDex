@@ -1,9 +1,11 @@
 import "@/global.css";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Easing, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomText from "@/components/customText";
 import CustomButton from "@/components/customButton";
+
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 interface Pokemon {
   name: string;
@@ -28,6 +30,7 @@ export default function Index() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [currentEvolutionIndex, setCurrentEvolutionIndex] = useState<number>(0);
+  const spinValue = useRef(new Animated.Value(0)).current;
 
   const fetchPokemon = async (query: string) => {
     if (!query.trim()) {
@@ -131,6 +134,25 @@ export default function Index() {
   useEffect(() => {
     handleRandomPokemon();
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      spinValue.setValue(0);
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    }
+  }, [loading]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const handlePreviousEvolution = async () => {
     if (!pokemon || currentEvolutionIndex <= 0) return;
@@ -408,8 +430,10 @@ export default function Index() {
         {/* Loading */}
         {loading && (
           <View className="items-center py-12">
-            <ActivityIndicator size="large" color="#ffffff" />
-            <CustomText variant="loading" value="Buscando Pokémon..." />
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+              <MaterialIcons name="catching-pokemon" size={64} color="#ff0000" className="shadow-lg"/>
+            </Animated.View>
+            <CustomText variant="subtitle" value="Buscando Pokémon..." />
           </View>
         )}
 
@@ -461,17 +485,30 @@ export default function Index() {
                 </TouchableOpacity>
               </View>
 
-              {/* Evolution Indicator */}
+              {/* Evolution Chain Preview */}
               {pokemon.evolutionChain.length > 1 && (
-                <View className="flex-row justify-center gap-2 mt-3">
-                  {pokemon.evolutionChain.map((_, index) => (
-                    <View
-                      key={index}
-                      className={`w-2 h-2 rounded-full ${
-                        index === currentEvolutionIndex ? 'bg-red-500' : 'bg-gray-300'
-                      }`}
-                    />
-                  ))}
+                <View className="mt-3">
+                  <CustomText 
+                    variant="statLabel" 
+                    value="Cadena Evolutiva" 
+                    className="text-center mb-2"
+                  />
+                  <View className="flex-row justify-center gap-2 flex-wrap">
+                    {pokemon.evolutionChain.map((evo, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => fetchPokemon(evo.id.toString())}
+                        className={`px-3 py-1 rounded-full ${
+                          index === currentEvolutionIndex ? 'bg-red-500' : 'bg-gray-300'
+                        }`}
+                      >
+                        <CustomText 
+                          variant="typeText" 
+                          value={evo.name}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
