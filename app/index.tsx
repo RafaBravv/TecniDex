@@ -1,6 +1,6 @@
 // Index.tsx
-import GeminiApi from "@/app/api";
+import { PokedexComponent } from "@/app/pokedex";
 
 export default function Index() {
-  return <GeminiApi/>;
+  return <PokedexComponent/>;
 }

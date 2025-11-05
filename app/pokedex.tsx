@@ -1,11 +1,25 @@
 // PokedexComponent.tsx
+import { GeminiService } from "@/app/api";
 import CustomButton from "@/components/customButton";
 import CustomText from "@/components/customText";
 import "@/global.css";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import axios from "axios";
-import { Component } from "react";
-import { Animated, Easing, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
+import { Component, createRef } from "react";
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
+import Markdown from 'react-native-markdown-display';
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Pokemon {
@@ -25,6 +39,11 @@ interface EvolutionData {
   image: string;
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface PokedexState {
   pokemon: Pokemon | null;
   searchQuery: string;
@@ -32,11 +51,23 @@ interface PokedexState {
   error: string;
   currentEvolutionIndex: number;
   spinValue: Animated.Value;
+  showChatModal: boolean;
+  chatMessages: ChatMessage[];
+  chatInput: string;
+  chatLoading: boolean;
+  geminiService: GeminiService | null;
 }
 
 export class PokedexComponent extends Component<{}, PokedexState> {
+  private scrollViewRef: React.RefObject<any>;
+
   constructor(props: {}) {
     super(props);
+
+    this.scrollViewRef = createRef<ScrollView>();
+    
+    const APIKEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+    
     this.state = {
       pokemon: null,
       searchQuery: "",
@@ -44,6 +75,11 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       error: "",
       currentEvolutionIndex: 0,
       spinValue: new Animated.Value(0),
+      showChatModal: false,
+      chatMessages: [],
+      chatInput: "",
+      chatLoading: false,
+      geminiService: APIKEY ? new GeminiService(APIKEY) : null,
     };
   }
 
@@ -79,12 +115,10 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       );
       const data = response.data;
 
-      // Obtener nombres en español
       const speciesResponse = await axios.get(data.species.url);
       const speciesData = speciesResponse.data;
       const spanishName = speciesData.names.find((name: any) => name.language.name === 'es')?.name || data.name;
 
-      // Obtener tipos en español
       const typesPromises = data.types.map(async (type: any) => {
         const typeResponse = await axios.get(type.type.url);
         const typeData = typeResponse.data;
@@ -92,7 +126,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       });
       const spanishTypes = await Promise.all(typesPromises);
 
-      // Obtener habilidades en español
       const abilitiesPromises = data.abilities.map(async (ability: any) => {
         const abilityResponse = await axios.get(ability.ability.url);
         const abilityData = abilityResponse.data;
@@ -100,7 +133,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       });
       const spanishAbilities = await Promise.all(abilitiesPromises);
 
-      // Obtener cadena evolutiva
       const evolutionChainResponse = await axios.get(speciesData.evolution_chain.url);
       const evolutionChainData = evolutionChainResponse.data;
 
@@ -177,6 +209,86 @@ export class PokedexComponent extends Component<{}, PokedexState> {
     await this.fetchPokemon(nextEvolution.id.toString());
   };
 
+  openChat = () => {
+    if (!this.state.geminiService) {
+      this.setState({ 
+        error: "API Key de Gemini no configurada. Añade EXPO_PUBLIC_GEMINI_API_KEY a tu archivo .env" 
+      });
+      return;
+    }
+
+    if (!this.state.pokemon) {
+      this.setState({ error: "Primero busca un Pokémon para analizar" });
+      return;
+    }
+
+    this.setState({ 
+      showChatModal: true,
+      chatMessages: [{
+        role: 'assistant',
+        content: `¡Hola! Soy tu asistente de análisis Pokémon. Estoy listo para analizar a **${this.state.pokemon.name}**. ¿Qué te gustaría saber sobre sus estadísticas, habilidades, tipos o debilidades?`
+      }]
+    });
+  };
+
+  closeChat = () => {
+    this.setState({ showChatModal: false, chatMessages: [], chatInput: "" });
+  };
+
+  sendMessage = async () => {
+    const { chatInput, pokemon, geminiService, chatMessages } = this.state;
+
+    if (!chatInput.trim() || !pokemon || !geminiService) return;
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: chatInput
+    };
+
+    this.setState({ 
+      chatMessages: [...chatMessages, userMessage],
+      chatInput: "",
+      chatLoading: true
+    });
+
+    const pokemonData = `
+Nombre: ${pokemon.name}
+ID: #${pokemon.id.toString().padStart(3, '0')}
+Tipos: ${pokemon.types.join(', ')}
+Altura: ${(pokemon.height / 10).toFixed(1)}m
+Peso: ${(pokemon.weight / 10).toFixed(1)}kg
+Habilidades: ${pokemon.abilities.join(', ')}
+Debilidades: ${this.getTypeWeaknesses(pokemon.types).join(', ')}
+Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
+    `;
+
+    try {
+      const response = await geminiService.analyzePokemon(pokemonData, chatInput);
+      
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: response
+      };
+
+      this.setState({ 
+        chatMessages: [...this.state.chatMessages, assistantMessage],
+        chatLoading: false
+      });
+
+      setTimeout(() => {
+        this.scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error: any) {
+      this.setState({ 
+        chatMessages: [...this.state.chatMessages, {
+          role: 'assistant',
+          content: `❌ Error: ${error.message}`
+        }],
+        chatLoading: false
+      });
+    }
+  };
+
   getTypeColor = (type: string): string => {
     const colors: { [key: string]: string } = {
       'Normal': '#A8A878',
@@ -228,7 +340,7 @@ export class PokedexComponent extends Component<{}, PokedexState> {
   };
 
   render() {
-    const { pokemon, searchQuery, loading, error, currentEvolutionIndex, spinValue } = this.state;
+    const { pokemon, searchQuery, loading, error, currentEvolutionIndex, spinValue, showChatModal, chatMessages, chatInput, chatLoading } = this.state;
 
     const spin = spinValue.interpolate({
       inputRange: [0, 1],
@@ -239,13 +351,11 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       <SafeAreaView className="flex-1 bg-white relative">
         <View className="h-[50%] bg-red-500 -z-1 absolute inset-0"/>
         <ScrollView contentContainerClassName="flex-grow p-6 z-1000">
-          {/* Header */}
           <View className="items-center mb-6">
             <CustomText variant="header" value="Pokédex" />
             <CustomText variant="subheader" value="Busca tu Pokémon favorito" />
           </View>
 
-          {/* Search Bar */}
           <View className="bg-white rounded-2xl p-4 mb-6 shadow-lg">
             <CustomText variant="label" value="Nombre o Número" />
             <TextInput
@@ -275,14 +385,12 @@ export class PokedexComponent extends Component<{}, PokedexState> {
             </View>
           </View>
 
-          {/* Error Message */}
           {error && (
             <View className="bg-red-100 border-2 border-red-400 rounded-xl p-4 mb-6">
               <CustomText variant="error" value={error} />
             </View>
           )}
 
-          {/* Loading */}
           {loading && (
             <View className="items-center py-12">
               <Animated.View style={{ transform: [{ rotate: spin }] }}>
@@ -292,19 +400,15 @@ export class PokedexComponent extends Component<{}, PokedexState> {
             </View>
           )}
 
-          {/* Pokemon Card */}
           {pokemon && !loading && (
             <View className="bg-white rounded-3xl p-6 items-center shadow-2xl">
-              {/* ID */}
               <CustomText 
                 variant="pokemonId"
                 value={`#${pokemon.id.toString().padStart(3, '0')}`}
               />
 
-              {/* Image with Evolution Carousel */}
               <View className="w-full mb-4">
                 <View className="flex-row items-center justify-center">
-                  {/* Previous Evolution Button */}
                   <TouchableOpacity
                     onPress={this.handlePreviousEvolution}
                     disabled={currentEvolutionIndex <= 0}
@@ -317,7 +421,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                     />
                   </TouchableOpacity>
 
-                  {/* Pokemon Image */}
                   <View className="bg-gray-50 rounded-full p-4">
                     <Image
                       source={{ uri: pokemon.image }}
@@ -326,7 +429,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                     />
                   </View>
 
-                  {/* Next Evolution Button */}
                   <TouchableOpacity
                     onPress={this.handleNextEvolution}
                     disabled={currentEvolutionIndex >= pokemon.evolutionChain.length - 1}
@@ -340,7 +442,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                   </TouchableOpacity>
                 </View>
 
-                {/* Evolution Chain Preview */}
                 {pokemon.evolutionChain.length > 1 && (
                   <View className="mt-3">
                     <CustomText 
@@ -368,10 +469,8 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                 )}
               </View>
 
-              {/* Name */}
               <CustomText variant="pokemonName" value={pokemon.name} />
 
-              {/* Types */}
               <View className="flex-row gap-2 mb-6">
                 {pokemon.types.map((type, index) => (
                   <View
@@ -384,7 +483,15 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                 ))}
               </View>
 
-              {/* Stats */}
+              {/* Botón de Chat con Gemini */}
+              <TouchableOpacity
+                onPress={this.openChat}
+                className="bg-purple-600 px-6 py-3 rounded-full flex-row items-center gap-2 mb-6"
+              >
+                <MaterialIcons name="chat" size={24} color="white" />
+                <CustomText variant="typeText" value="Analizar con Gemini AI" />
+              </TouchableOpacity>
+
               <View className="w-full bg-gray-50 rounded-2xl p-4 mb-4">
                 <CustomText variant="statsTitle" value="Estadísticas" />
                 
@@ -411,7 +518,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                 </View>
               </View>
 
-              {/* Abilities */}
               <View className="w-full bg-gray-50 rounded-2xl p-4 mb-4">
                 <CustomText variant="statsTitle" value="Habilidades" />
                 <View className="flex-row flex-wrap gap-2 justify-center mt-2">
@@ -429,7 +535,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                 </View>
               </View>
 
-              {/* Weaknesses */}
               <View className="w-full bg-gray-50 rounded-2xl p-4">
                 <CustomText variant="statsTitle" value="Debilidades" />
                 <View className="flex-row flex-wrap gap-2 justify-center mt-2">
@@ -447,7 +552,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
             </View>
           )}
 
-          {/* Initial State */}
           {!pokemon && !loading && !error && (
             <View className="items-center py-12">
               <CustomText 
@@ -457,6 +561,103 @@ export class PokedexComponent extends Component<{}, PokedexState> {
             </View>
           )}
         </ScrollView>
+
+        {/* Modal de Chat con Gemini */}
+        <Modal
+          visible={showChatModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={this.closeChat}
+        >
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            className="flex-1"
+          >
+            <View className="flex-1 bg-black/50 justify-end">
+              <View className="bg-white rounded-t-3xl h-[80%] flex-1">
+                {/* Header del Chat */}
+                <View className="bg-purple-600 rounded-t-3xl p-4 flex-row justify-between items-center">
+                  <View className="flex-row items-center gap-2">
+                    <MaterialIcons name="psychology" size={28} color="white" />
+                    <CustomText variant="typeText" value={`Analizando: ${pokemon?.name || ''}`} />
+                  </View>
+                  <TouchableOpacity onPress={this.closeChat}>
+                    <MaterialIcons name="close" size={28} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Mensajes del Chat */}
+                <ScrollView 
+                  ref={this.scrollViewRef}
+                  className="flex-1 p-4"
+                  onContentSizeChange={() => this.scrollViewRef.current?.scrollToEnd({ animated: true })}
+                >
+                  {chatMessages.map((message, index) => (
+                    <View 
+                      key={index}
+                      className={`mb-4 ${message.role === 'user' ? 'items-end' : 'items-start'}`}
+                    >
+                      <View className={`max-w-[80%] p-3 rounded-2xl ${
+                        message.role === 'user' 
+                          ? 'bg-purple-600' 
+                          : 'bg-gray-100'
+                      }`}>
+                        {message.role === 'assistant' ? (
+                          <Markdown
+                            style={{
+                              body: { color: '#000', fontSize: 14 },
+                              heading1: { fontSize: 18, fontWeight: 'bold', marginVertical: 4 },
+                              heading2: { fontSize: 16, fontWeight: 'bold', marginVertical: 3 },
+                              code_inline: { backgroundColor: '#e0e0e0', paddingHorizontal: 4, borderRadius: 4 },
+                              strong: { fontWeight: 'bold' },
+                              em: { fontStyle: 'italic' },
+                            }}
+                          >
+                            {message.content}
+                          </Markdown>
+                        ) : (
+                          <CustomText 
+                            variant="typeText" 
+                            value={message.content}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                  {chatLoading && (
+                    <View className="items-start mb-4">
+                      <View className="bg-gray-100 p-3 rounded-2xl">
+                        <ActivityIndicator size="small" color="#9333ea" />
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
+
+                {/* Input del Chat */}
+                <View className="border-t border-gray-200 p-4 flex-row gap-2">
+                  <TextInput
+                    className="flex-1 bg-gray-100 rounded-full px-4 py-3 text-gray-900"
+                    placeholder="Pregunta sobre este Pokémon..."
+                    placeholderTextColor="#9ca3af"
+                    value={chatInput}
+                    onChangeText={(text) => this.setState({ chatInput: text })}
+                    onSubmitEditing={this.sendMessage}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    onPress={this.sendMessage}
+                    disabled={!chatInput.trim() || chatLoading}
+                    className={`bg-purple-600 rounded-full w-12 h-12 items-center justify-center ${
+                      (!chatInput.trim() || chatLoading) ? 'opacity-50' : ''
+                    }`}
+                  >
+                    <MaterialIcons name="send" size={24} color="white" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </SafeAreaView>
     );
   }
