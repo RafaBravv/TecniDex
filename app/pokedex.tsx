@@ -4,7 +4,6 @@ import CustomButton from "@/components/customButton";
 import CustomText from "@/components/customText";
 import "@/global.css";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import axios from "axios";
 import { Component, createRef } from "react";
 import {
   ActivityIndicator,
@@ -21,28 +20,7 @@ import {
 } from "react-native";
 import Markdown from 'react-native-markdown-display';
 import { SafeAreaView } from "react-native-safe-area-context";
-
-interface Pokemon {
-  name: string;
-  image: string;
-  id: number;
-  types: string[];
-  height: number;
-  weight: number;
-  abilities: string[];
-  evolutionChain: EvolutionData[];
-}
-
-interface EvolutionData {
-  id: number;
-  name: string;
-  image: string;
-}
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { PokedexService, Pokemon, ChatMessage } from "@/app/funciones";
 
 interface PokedexState {
   pokemon: Pokemon | null;
@@ -67,7 +45,7 @@ export class PokedexComponent extends Component<{}, PokedexState> {
     this.scrollViewRef = createRef<ScrollView>();
     
     const APIKEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-    console.log('API Key existe:', !!APIKEY); // No imprimas la key completa por seguridad
+    console.log('API Key existe:', !!APIKEY);
     console.log('Primeros caracteres:', APIKEY?.substring(0, 10));
     
     this.state = {
@@ -85,10 +63,11 @@ export class PokedexComponent extends Component<{}, PokedexState> {
     };
   }
 
-  // ======================= FUNCIONES =======================
+  // ======================= LIFECYCLE =======================
   componentDidMount() {
     this.handleRandomPokemon();
   }
+
   componentDidUpdate(prevProps: {}, prevState: PokedexState) {
     if (this.state.loading && !prevState.loading) {
       this.state.spinValue.setValue(0);
@@ -102,81 +81,27 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       ).start();
     }
   }
+
+  // ======================= POKEMON HANDLERS =======================
   fetchPokemon = async (query: string) => {
-    if (!query.trim()) {
-      this.setState({ error: "Por favor ingresa un nombre o número de Pokémon" });
+    const validation = PokedexService.validateSearchQuery(query);
+    if (!validation.valid) {
+      this.setState({ error: validation.error || "" });
       return;
     }
 
     this.setState({ loading: true, error: "" });
 
     try {
-      const response = await axios.get(
-        `https://pokeapi.co/api/v2/pokemon/${query.toLowerCase().trim()}`
+      const pokemon = await PokedexService.fetchPokemon(query);
+      const currentIndex = PokedexService.getCurrentEvolutionIndex(
+        pokemon.evolutionChain, 
+        pokemon.id
       );
-      const data = response.data;
-
-      const speciesResponse = await axios.get(data.species.url);
-      const speciesData = speciesResponse.data;
-      const spanishName = speciesData.names.find((name: any) => name.language.name === 'es')?.name || data.name;
-
-      const typesPromises = data.types.map(async (type: any) => {
-        const typeResponse = await axios.get(type.type.url);
-        const typeData = typeResponse.data;
-        return typeData.names.find((name: any) => name.language.name === 'es')?.name || type.type.name;
-      });
-      const spanishTypes = await Promise.all(typesPromises);
-
-      const abilitiesPromises = data.abilities.map(async (ability: any) => {
-        const abilityResponse = await axios.get(ability.ability.url);
-        const abilityData = abilityResponse.data;
-        return abilityData.names.find((name: any) => name.language.name === 'es')?.name || ability.ability.name;
-      });
-      const spanishAbilities = await Promise.all(abilitiesPromises);
-
-      const evolutionChainResponse = await axios.get(speciesData.evolution_chain.url);
-      const evolutionChainData = evolutionChainResponse.data;
-
-      const evolutionChain: EvolutionData[] = [];
-      const chainLinks = [];
-      let current = evolutionChainData.chain;
-      while (current) {
-        chainLinks.push(current);
-        current = current.evolves_to?.[0];
-      }
-
-      const evolutionPromises = chainLinks.map(async (chain) => {
-        const pokemonId = chain.species.url.split('/').slice(-2)[0];
-        const pokemonResponse = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
-        const pokemonData = pokemonResponse.data;
-        const speciesResp = await axios.get(chain.species.url);
-        const speciesInfo = speciesResp.data;
-        const spanishNameEvo = speciesInfo.names.find((name: any) => name.language.name === 'es')?.name || chain.species.name;
-
-        return {
-          id: parseInt(pokemonId),
-          name: spanishNameEvo,
-          image: pokemonData.sprites.other['official-artwork'].front_default || pokemonData.sprites.front_default,
-        };
-      });
-
-      const processedChain = await Promise.all(evolutionPromises);
-      evolutionChain.push(...processedChain);
-
-      const currentIndex = evolutionChain.findIndex(evo => evo.id === data.id);
 
       this.setState({
-        pokemon: {
-          name: spanishName,
-          image: data.sprites.other['official-artwork'].front_default || data.sprites.front_default,
-          id: data.id,
-          types: spanishTypes,
-          height: data.height,
-          weight: data.weight,
-          abilities: spanishAbilities,
-          evolutionChain: evolutionChain,
-        },
-        currentEvolutionIndex: currentIndex !== -1 ? currentIndex : 0,
+        pokemon,
+        currentEvolutionIndex: currentIndex,
         loading: false,
       });
     } catch (err: any) {
@@ -187,24 +112,34 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       });
     }
   };
+
   handleSearch = () => {
     this.fetchPokemon(this.state.searchQuery);
   };
+
   handleRandomPokemon = () => {
-    const randomId = Math.floor(Math.random() * 898) + 1;
+    const randomId = PokedexService.getRandomPokemonId();
     this.setState({ searchQuery: randomId.toString() });
     this.fetchPokemon(randomId.toString());
   };
+
   handlePreviousEvolution = async () => {
-    if (!this.state.pokemon || this.state.currentEvolutionIndex <= 0) return;
-    const prevEvolution = this.state.pokemon.evolutionChain[this.state.currentEvolutionIndex - 1];
+    const { pokemon, currentEvolutionIndex } = this.state;
+    if (!pokemon || currentEvolutionIndex <= 0) return;
+    
+    const prevEvolution = pokemon.evolutionChain[currentEvolutionIndex - 1];
     await this.fetchPokemon(prevEvolution.id.toString());
   };
+
   handleNextEvolution = async () => {
-    if (!this.state.pokemon || this.state.currentEvolutionIndex >= this.state.pokemon.evolutionChain.length - 1) return;
-    const nextEvolution = this.state.pokemon.evolutionChain[this.state.currentEvolutionIndex + 1];
+    const { pokemon, currentEvolutionIndex } = this.state;
+    if (!pokemon || currentEvolutionIndex >= pokemon.evolutionChain.length - 1) return;
+    
+    const nextEvolution = pokemon.evolutionChain[currentEvolutionIndex + 1];
     await this.fetchPokemon(nextEvolution.id.toString());
   };
+
+  // ======================= CHAT HANDLERS =======================
   openChat = () => {
     if (!this.state.geminiService) {
       this.setState({ 
@@ -226,9 +161,11 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       }]
     });
   };
+
   closeChat = () => {
     this.setState({ showChatModal: false, chatMessages: [], chatInput: "" });
   };
+
   sendMessage = async () => {
     const { chatInput, pokemon, geminiService, chatMessages } = this.state;
 
@@ -245,19 +182,10 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       chatLoading: true
     });
 
-    const pokemonData = `
-Nombre: ${pokemon.name}
-ID: #${pokemon.id.toString().padStart(3, '0')}
-Tipos: ${pokemon.types.join(', ')}
-Altura: ${(pokemon.height / 10).toFixed(1)}m
-Peso: ${(pokemon.weight / 10).toFixed(1)}kg
-Habilidades: ${pokemon.abilities.join(', ')}
-Debilidades: ${this.getTypeWeaknesses(pokemon.types).join(', ')}
-Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
-    `;
+    const pokemonContext = PokedexService.getPokemonContext(pokemon);
 
     try {
-      const response = await geminiService.analyzePokemon(pokemonData, chatInput);
+      const response = await geminiService.analyzePokemon(pokemonContext, chatInput);
       
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -282,58 +210,21 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
       });
     }
   };
-  getTypeColor = (type: string): string => {
-    const colors: { [key: string]: string } = {
-      'Normal': '#A8A878',
-      'Fuego': '#F08030',
-      'Agua': '#6890F0',
-      'Eléctrico': '#F8D030',
-      'Planta': '#78C850',
-      'Hielo': '#98D8D8',
-      'Lucha': '#C03028',
-      'Veneno': '#A040A0',
-      'Tierra': '#E0C068',
-      'Volador': '#A890F0',
-      'Psíquico': '#F85888',
-      'Bicho': '#A8B820',
-      'Roca': '#B8A038',
-      'Fantasma': '#705898',
-      'Dragón': '#7038F8',
-      'Siniestro': '#705848',
-      'Acero': '#B8B8D0',
-      'Hada': '#EE99AC',
-    };
-    return colors[type] || '#A8A878';
-  };
-  getTypeWeaknesses = (types: string[]): string[] => {
-    const weaknesses: { [key: string]: string[] } = {
-      'Normal': ['Lucha'],
-      'Fuego': ['Agua', 'Tierra', 'Roca'],
-      'Agua': ['Eléctrico', 'Planta'],
-      'Eléctrico': ['Tierra'],
-      'Planta': ['Fuego', 'Hielo', 'Veneno', 'Volador', 'Bicho'],
-      'Hielo': ['Fuego', 'Lucha', 'Roca', 'Acero'],
-      'Lucha': ['Volador', 'Psíquico', 'Hada'],
-      'Veneno': ['Tierra', 'Psíquico'],
-      'Tierra': ['Agua', 'Planta', 'Hielo'],
-      'Volador': ['Eléctrico', 'Hielo', 'Roca'],
-      'Psíquico': ['Bicho', 'Fantasma', 'Siniestro'],
-      'Bicho': ['Fuego', 'Volador', 'Roca'],
-      'Roca': ['Agua', 'Planta', 'Lucha', 'Tierra', 'Acero'],
-      'Fantasma': ['Fantasma', 'Siniestro'],
-      'Dragón': ['Hielo', 'Dragón', 'Hada'],
-      'Siniestro': ['Lucha', 'Bicho', 'Hada'],
-      'Acero': ['Fuego', 'Lucha', 'Tierra'],
-      'Hada': ['Veneno', 'Acero'],
-    };
 
-    const allWeaknesses = types.flatMap(type => weaknesses[type] || []);
-    return [...new Set(allWeaknesses)];
-  };
-
-  // ======================= ESCENA =======================
+  // ======================= RENDER =======================
   render() {
-    const { pokemon, searchQuery, loading, error, currentEvolutionIndex, spinValue, showChatModal, chatMessages, chatInput, chatLoading } = this.state;
+    const { 
+      pokemon, 
+      searchQuery, 
+      loading, 
+      error, 
+      currentEvolutionIndex, 
+      spinValue, 
+      showChatModal, 
+      chatMessages, 
+      chatInput, 
+      chatLoading 
+    } = this.state;
 
     const spin = spinValue.interpolate({
       inputRange: [0, 1],
@@ -349,7 +240,7 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
             <CustomText variant="subheader" value="Busca tu Pokémon favorito" />
           </View>
 
-          {/* ======================= Panel de busqueda ======================= */}
+          {/* ======================= Panel de búsqueda ======================= */}
           <View className="bg-white rounded-2xl p-4 mb-6 shadow-lg">
             <CustomText variant="label" value="Nombre o Número" />
             <TextInput
@@ -402,7 +293,6 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
               />
 
               <View className="w-full mb-4">
-
                 {/* ======================= Visualizador de pokemones ======================= */}
                 <View className="flex-row items-center justify-center">
                   <TouchableOpacity
@@ -473,7 +363,7 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
                   <View
                     key={index}
                     className="px-6 py-2 rounded-full"
-                    style={{ backgroundColor: this.getTypeColor(type) }}
+                    style={{ backgroundColor: PokedexService.getTypeColor(type) }}
                   >
                     <CustomText variant="typeText" value={type} />
                   </View>
@@ -535,11 +425,11 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
               <View className="w-full bg-gray-50 rounded-2xl p-4">
                 <CustomText variant="statsTitle" value="Debilidades" />
                 <View className="flex-row flex-wrap gap-2 justify-center mt-2">
-                  {this.getTypeWeaknesses(pokemon.types).map((weakness, index) => (
+                  {PokedexService.getTypeWeaknesses(pokemon.types).map((weakness, index) => (
                     <View
                       key={index}
                       className="px-4 py-2 rounded-full"
-                      style={{ backgroundColor: this.getTypeColor(weakness) }}
+                      style={{ backgroundColor: PokedexService.getTypeColor(weakness) }}
                     >
                       <CustomText variant="typeText" value={weakness} />
                     </View>
