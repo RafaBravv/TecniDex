@@ -67,6 +67,8 @@ export class PokedexComponent extends Component<{}, PokedexState> {
     this.scrollViewRef = createRef<ScrollView>();
     
     const APIKEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+    console.log('API Key existe:', !!APIKEY); // No imprimas la key completa por seguridad
+    console.log('Primeros caracteres:', APIKEY?.substring(0, 10));
     
     this.state = {
       pokemon: null,
@@ -83,10 +85,10 @@ export class PokedexComponent extends Component<{}, PokedexState> {
     };
   }
 
+  // ======================= FUNCIONES =======================
   componentDidMount() {
     this.handleRandomPokemon();
   }
-
   componentDidUpdate(prevProps: {}, prevState: PokedexState) {
     if (this.state.loading && !prevState.loading) {
       this.state.spinValue.setValue(0);
@@ -100,7 +102,6 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       ).start();
     }
   }
-
   fetchPokemon = async (query: string) => {
     if (!query.trim()) {
       this.setState({ error: "Por favor ingresa un nombre o número de Pokémon" });
@@ -186,29 +187,24 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       });
     }
   };
-
   handleSearch = () => {
     this.fetchPokemon(this.state.searchQuery);
   };
-
   handleRandomPokemon = () => {
     const randomId = Math.floor(Math.random() * 898) + 1;
     this.setState({ searchQuery: randomId.toString() });
     this.fetchPokemon(randomId.toString());
   };
-
   handlePreviousEvolution = async () => {
     if (!this.state.pokemon || this.state.currentEvolutionIndex <= 0) return;
     const prevEvolution = this.state.pokemon.evolutionChain[this.state.currentEvolutionIndex - 1];
     await this.fetchPokemon(prevEvolution.id.toString());
   };
-
   handleNextEvolution = async () => {
     if (!this.state.pokemon || this.state.currentEvolutionIndex >= this.state.pokemon.evolutionChain.length - 1) return;
     const nextEvolution = this.state.pokemon.evolutionChain[this.state.currentEvolutionIndex + 1];
     await this.fetchPokemon(nextEvolution.id.toString());
   };
-
   openChat = () => {
     if (!this.state.geminiService) {
       this.setState({ 
@@ -226,15 +222,13 @@ export class PokedexComponent extends Component<{}, PokedexState> {
       showChatModal: true,
       chatMessages: [{
         role: 'assistant',
-        content: `¡Hola! Soy tu asistente de análisis Pokémon. Estoy listo para analizar a **${this.state.pokemon.name}**. ¿Qué te gustaría saber sobre sus estadísticas, habilidades, tipos o debilidades?`
+        content: `¡Hola! Soy tu asistente de análisis Pokémon. Estoy listo para analizar a **${this.state.pokemon.name}**. ¿Qué te gustaría saber acerca de él/ella?`
       }]
     });
   };
-
   closeChat = () => {
     this.setState({ showChatModal: false, chatMessages: [], chatInput: "" });
   };
-
   sendMessage = async () => {
     const { chatInput, pokemon, geminiService, chatMessages } = this.state;
 
@@ -288,7 +282,6 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
       });
     }
   };
-
   getTypeColor = (type: string): string => {
     const colors: { [key: string]: string } = {
       'Normal': '#A8A878',
@@ -312,7 +305,6 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
     };
     return colors[type] || '#A8A878';
   };
-
   getTypeWeaknesses = (types: string[]): string[] => {
     const weaknesses: { [key: string]: string[] } = {
       'Normal': ['Lucha'],
@@ -339,6 +331,7 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
     return [...new Set(allWeaknesses)];
   };
 
+  // ======================= ESCENA =======================
   render() {
     const { pokemon, searchQuery, loading, error, currentEvolutionIndex, spinValue, showChatModal, chatMessages, chatInput, chatLoading } = this.state;
 
@@ -356,11 +349,12 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
             <CustomText variant="subheader" value="Busca tu Pokémon favorito" />
           </View>
 
+          {/* ======================= Panel de busqueda ======================= */}
           <View className="bg-white rounded-2xl p-4 mb-6 shadow-lg">
             <CustomText variant="label" value="Nombre o Número" />
             <TextInput
-              className="bg-gray-100 border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 mb-3 text-base"
-              placeholder="Ej: pikachu o 25"
+              className="bg-gray-100 border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 mb-3"
+              placeholder="Ej: Pikachu o 25"
               placeholderTextColor="#9ca3af"
               value={searchQuery}
               onChangeText={(text) => this.setState({ searchQuery: text })}
@@ -408,6 +402,8 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
               />
 
               <View className="w-full mb-4">
+
+                {/* ======================= Visualizador de pokemones ======================= */}
                 <View className="flex-row items-center justify-center">
                   <TouchableOpacity
                     onPress={this.handlePreviousEvolution}
@@ -442,6 +438,7 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
                   </TouchableOpacity>
                 </View>
 
+                {/* ======================= Visualizador de cadena evolutiva ======================= */}
                 {pokemon.evolutionChain.length > 1 && (
                   <View className="mt-3">
                     <CustomText 
@@ -565,7 +562,7 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
         {/* Modal de Chat con Gemini */}
         <Modal
           visible={showChatModal}
-          animationType="slide"
+          animationType="fade"
           transparent={true}
           onRequestClose={this.closeChat}
         >
@@ -573,8 +570,8 @@ Cadena Evolutiva: ${pokemon.evolutionChain.map(e => e.name).join(' → ')}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             className="flex-1"
           >
-            <View className="flex-1 bg-black/50 justify-end">
-              <View className="bg-white rounded-t-3xl h-[80%] flex-1">
+            <View className="flex-1 bg-black/50 justify-end items-center">
+              <View className="bg-white rounded-t-3xl h-[60%] w-[95%]">
                 {/* Header del Chat */}
                 <View className="bg-purple-600 rounded-t-3xl p-4 flex-row justify-between items-center">
                   <View className="flex-row items-center gap-2">

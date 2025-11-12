@@ -20,7 +20,7 @@ const CustomButton = ({
 }: CustomButtonProps) => {
   return (
     <TouchableOpacity
-      className={`flex-1 rounded-xl py-4 items-center active:opacity-80 ${selectVariant(variant)} ${className}`}
+      className={`flex-1 rounded-xl justify-center h-[40px] items-center active:opacity-80 ${selectVariant(variant)} ${className}`}
       onPress={onPress}
       disabled={disabled}
     >

@@ -1,4 +1,3 @@
-// GeminiService.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export class GeminiService {
@@ -7,23 +6,30 @@ export class GeminiService {
 
   constructor(apiKey: string) {
     this.ai = new GoogleGenerativeAI(apiKey);
-    this.model = this.ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    
+    this.model = this.ai.getGenerativeModel({ 
+      model: "gemini-2.5-flash"
+    });
   }
 
-  async analyzePokemon(pokemonData: string, userQuestion: string): Promise<string> {
-    const prompt = `Eres un experto en Pokémon. Aquí están los datos del Pokémon actual:
+  async analyzePokemon(
+    pokemonIdentifier: number | string, 
+    userQuestion: string
+  ): Promise<string> {
+    const prompt = `Eres un experto en Pokémon. 
 
-${pokemonData}
+Pokémon: ${typeof pokemonIdentifier === 'number' ? `#${pokemonIdentifier}` : pokemonIdentifier}
 
 Pregunta del usuario: ${userQuestion}
 
-Por favor, responde de manera clara y concisa, analizando las estadísticas, tipos, habilidades y debilidades según la pregunta. Usa formato Markdown para mejor legibilidad.`;
+Responde de manera clara, concisa y precisa en español. Usa formato Markdown para mejor legibilidad.`;
 
     try {
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       return response.text();
     } catch (error: any) {
+      console.error("Error de Gemini:", error);
       throw new Error(error.message || "Error al comunicarse con Gemini");
     }
   }
