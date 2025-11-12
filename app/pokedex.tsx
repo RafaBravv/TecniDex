@@ -405,35 +405,37 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                 </View>
               </View>
 
-              <View className="w-full bg-gray-50 rounded-2xl p-4 mb-4">
-                <CustomText variant="statsTitle" value="Habilidades" />
-                <View className="flex-row flex-wrap gap-2 justify-center mt-2">
-                  {pokemon.abilities.map((ability, index) => (
-                    <View
-                      key={index}
-                      className="bg-purple-500 px-4 py-2 rounded-full"
-                    >
-                      <CustomText 
-                        variant="typeText" 
-                        value={ability} 
-                      />
-                    </View>
-                  ))}
+              <View className="flex-row w-full gap-2">
+                <View className="flex-1 bg-gray-50 rounded-2xl p-4">
+                  <CustomText variant="statsTitle" value="Habilidades" />
+                  <View className="flex-row flex-wrap gap-2 justify-center mt-2">
+                    {pokemon.abilities.map((ability, index) => (
+                      <View
+                        key={index}
+                        className="bg-purple-500 px-4 py-2 rounded-full"
+                      >
+                        <CustomText 
+                          variant="typeText" 
+                          value={ability} 
+                        />
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
 
-              <View className="w-full bg-gray-50 rounded-2xl p-4">
-                <CustomText variant="statsTitle" value="Debilidades" />
-                <View className="flex-row flex-wrap gap-2 justify-center mt-2">
-                  {PokedexService.getTypeWeaknesses(pokemon.types).map((weakness, index) => (
-                    <View
-                      key={index}
-                      className="px-4 py-2 rounded-full"
-                      style={{ backgroundColor: PokedexService.getTypeColor(weakness) }}
-                    >
-                      <CustomText variant="typeText" value={weakness} />
-                    </View>
-                  ))}
+                <View className="flex-1 bg-gray-50 rounded-2xl p-4">
+                  <CustomText variant="statsTitle" value="Debilidades" />
+                  <View className="flex-row flex-wrap gap-2 justify-center mt-2">
+                    {PokedexService.getTypeWeaknesses(pokemon.types).map((weakness, index) => (
+                      <View
+                        key={index}
+                        className="px-4 py-2 rounded-full"
+                        style={{ backgroundColor: PokedexService.getTypeColor(weakness) }}
+                      >
+                        <CustomText variant="typeText" value={weakness} />
+                      </View>
+                    ))}
+                  </View>
                 </View>
               </View>
             </View>
