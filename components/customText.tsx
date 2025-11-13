@@ -41,7 +41,7 @@ function selectVariant(variant: string) {
     case "pokemonId":
       return "text-gray-400 font-bold text-lg mb-2";
     case "pokemonName":
-      return "text-3xl font-bold text-gray-800 capitalize mb-4";
+      return "text-3xl font-bold text-gray-800 capitalize mb-2";
     case "typeText":
       return "text-white font-bold capitalize text-sm";
     case "statValue":

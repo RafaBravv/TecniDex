@@ -237,7 +237,7 @@ export class PokedexComponent extends Component<{}, PokedexState> {
         <ScrollView contentContainerClassName="flex-grow p-6 z-1000">
           <View className="items-center mb-6">
             <CustomText variant="header" value="Pokédex" />
-            <CustomText variant="subheader" value="Busca tu Pokémon favorito" />
+            <CustomText variant="subheader" value="Todo lo que necesitas saber sobre Pokémon" />
           </View>
 
           {/* ======================= Panel de búsqueda ======================= */}
@@ -327,37 +327,41 @@ export class PokedexComponent extends Component<{}, PokedexState> {
                     />
                   </TouchableOpacity>
                 </View>
-
-                {/* ======================= Visualizador de cadena evolutiva ======================= */}
-                {pokemon.evolutionChain.length > 1 && (
-                  <View className="mt-3">
-                    <CustomText 
-                      variant="statLabel" 
-                      value="Cadena Evolutiva" 
-                      className="text-center mb-2"
-                    />
-                    <View className="flex-row justify-center gap-2 flex-wrap">
-                      {pokemon.evolutionChain.map((evo, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          onPress={() => this.fetchPokemon(evo.id.toString())}
-                          className={`px-3 py-1 rounded-full ${
-                            index === currentEvolutionIndex ? 'bg-red-500' : 'bg-gray-300'
-                          }`}
-                        >
-                          <CustomText 
-                            variant="typeText" 
-                            value={evo.name}
-                          />
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                )}
               </View>
 
               <CustomText variant="pokemonName" value={pokemon.name} />
+              {/* ======================= Visualizador de cadena evolutiva ======================= */}
+              {pokemon.evolutionChain.length > 1 && (
+                <View>
+                  <CustomText 
+                    variant="statLabel" 
+                    value="Cadena Evolutiva" 
+                    className="text-center mb-2"
+                  />
+                  <View className="flex-row justify-center gap-2 flex-wrap mb-4">
+                    {pokemon.evolutionChain.map((evo, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => this.fetchPokemon(evo.id.toString())}
+                        className={`px-3 py-1 rounded-full ${
+                          index === currentEvolutionIndex ? 'bg-red-500' : 'bg-gray-300'
+                        }`}
+                      >
+                        <CustomText 
+                          variant="typeText" 
+                          value={evo.name}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
 
+              <CustomText 
+                variant="label" 
+                value="Tipo" 
+                className="text-center mb-2"
+              />
               <View className="flex-row gap-2 mb-6">
                 {pokemon.types.map((type, index) => (
                   <View
@@ -373,13 +377,13 @@ export class PokedexComponent extends Component<{}, PokedexState> {
               {/* Botón de Chat con Gemini */}
               <TouchableOpacity
                 onPress={this.openChat}
-                className="bg-purple-600 px-6 py-3 rounded-full flex-row items-center gap-2 mb-6"
+                className="bg-purple-600 px-6 py-3 rounded-full flex-row items-center gap-2 mb-3"
               >
                 <MaterialIcons name="chat" size={24} color="white" />
                 <CustomText variant="typeText" value="Analizar con Gemini AI" />
               </TouchableOpacity>
 
-              <View className="w-full bg-gray-50 rounded-2xl p-4 mb-4">
+              <View className="w-full bg-gray-50 rounded-2xl p-2 mb-4">
                 <CustomText variant="statsTitle" value="Estadísticas" />
                 
                 <View className="flex-row justify-around items-center">
